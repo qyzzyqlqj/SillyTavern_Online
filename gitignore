@@ -1,0 +1,13 @@
+config.yaml
+
+.env
+
+*.secret
+
+*.key
+
+node_modules/
+
+logs/
+
+tmp/

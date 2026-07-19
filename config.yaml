@@ -1,0 +1,196 @@
+# -- 数据配置 --
+# 用户数据存储根目录
+dataRoot: ./data
+# -- 服务器配置 --
+# 监听传入连接
+listen: true
+# 指定监听地址（支持IPv4/IPv6）
+listenAddress:
+  ipv4: 0.0.0.0
+  ipv6: '[::]'
+# 启用协议类型（至少启用一个）
+# auto=自动检测, true/false=手动开关
+protocol:
+    ipv4: true
+    ipv6: false
+# DNS优先使用IPv6
+dnsPreferIPv6: false
+# -- 浏览器启动配置 --
+browserLaunch:
+  # 启动时自动打开浏览器
+  enabled: false
+  # 使用的浏览器类型（Android不支持）
+  # default=系统默认, firefox/chrome/edge=指定浏览器
+  browser: 'default'
+  # 浏览器打开的主机名
+  # auto=自动决定, 可指定localhost等
+  hostname: 'auto'
+  # 浏览器使用的端口
+  # -1=使用服务器端口, 其他值=覆盖端口
+  port: -1
+  # 自动模式避免使用localhost
+  avoidLocalhost: false
+# 服务器端口
+port: 7860
+# -- SSL选项 --
+ssl:
+  enabled: false
+  certPath: "./certs/cert.pem"
+  keyPath: "./certs/privkey.pem"
+# -- 安全配置 --
+# 启用白名单模式
+whitelistMode: false
+# 在X-Forwarded-For/X-Real-IP头中验证IP
+enableForwardedWhitelist: true
+# 允许的IP地址白名单
+whitelist:
+  - 0.0.0.0/0    # 允许所有IPv4地址
+  - ::/0         # 允许所有IPv6地址
+# 自动白名单Docker主机和网关IP
+whitelistDockerHosts: true
+# 启用端点基础认证
+basicAuthMode: true
+# 基础认证凭据
+basicAuthUser:
+  username: ${USERNAME}
+  password: ${TAVERN_PASSWORD}
+# 启用CORS代理中间件
+enableCorsProxy: false
+# -- 请求代理配置 --
+requestProxy:
+  # 启用代理路由所有HTTP/HTTPS请求
+  enabled: false
+  # 代理URL协议：http/https/socks等
+  url: "socks5://username:password@example.com:1080"
+  # 代理绕过列表
+  bypass:
+    - localhost
+    - 127.0.0.1
+# 启用多用户模式
+enableUserAccounts: false
+# 启用隐蔽登录模式（隐藏登录界面用户列表）
+enableDiscreetLogin: false
+# 启用Authelia自动登录（需反向代理配置）
+autheliaAuth: false
+# 用户基础认证与账户凭证同步
+perUserBasicAuth: false
+
+# 用户会话超时（秒）
+# 正数=不活动超时, 0=关闭浏览器失效, 负数=永不过期
+sessionTimeout: -1
+# 禁用CSRF保护（不推荐）
+disableCsrfProtection: false
+# 禁用启动安全检查（不推荐）
+securityOverride: false
+# -- 日志配置 --
+logging:
+  # 启用访问日志记录
+  enableAccessLog: true
+  # 终端显示最低日志级别（0=DEBUG, 1=INFO, 2=WARN, 3=ERROR）
+  minLogLevel: 0
+# -- 速率限制配置 --
+rateLimiting:
+  # 使用X-Real-IP头替代IP进行限速（需配置反向代理）
+  preferRealIpHeader: false
+
+## 备份配置
+backups:
+  # 通用备份设置
+  common:
+    # 聊天/设置文件的备份保留数量
+    numberOfBackups: 50
+  chat:
+    # 启用自动聊天备份
+    enabled: true
+    # 保存前验证聊天文件完整性
+    checkIntegrity: true
+    # 每用户最大备份数（-1=无限制）
+    maxTotalBackups: -1
+    # 用户备份间隔（毫秒）
+    throttleInterval: 10000
+
+# 缩略图配置
+thumbnails:
+  # 启用缩略图生成
+  enabled: true
+  # 头像缩略图格式：jpg（高压缩）/png（支持透明）
+  format: "jpg"
+  # JPG缩略图质量（0-100）
+  quality: 95
+  # 各类型缩略图最大尺寸[宽,高]
+  dimensions: { 'bg': [160, 90], 'avatar': [96, 144] }
+
+# 性能相关配置
+performance:
+  # 启用角色卡延迟加载（提升大库性能）
+  lazyLoadCharacters: false
+  # 解析角色卡内存缓存上限（0=禁用）
+  memoryCacheCapacity: '1000mb'
+  # 启用角色卡磁盘缓存（提升大库性能）
+  useDiskCache: true
+
+# 允许API暴露密钥
+allowKeysExposure: false
+# 跳过新内容默认检查
+skipContentCheck: false
+# 允许下载卡片域名白名单
+whitelistImportDomains: []
+# API请求覆盖设置
+requestOverrides: []
+
+# 扩展功能配置
+extensions:
+  # 启用UI扩展
+  enabled: true
+  # 扩展版本更新时自动升级
+  autoUpdate: true
+  models:
+    # 启用HuggingFace自动模型下载
+    autoDownload: true
+    # 扩展模型ID（ONNX格式）
+    classification: Cohee/distilbert-base-uncased-go-emotions-onnx
+    captioning: Xenova/vit-gpt2-image-captioning
+    embedding: Cohee/jina-embeddings-v2-base-en
+    speechToText: Xenova/whisper-small
+    textToSpeech: Xenova/speecht5_tts
+
+# 启用按需分词器下载
+enableDownloadableTokenizers: true
+# -- OPENAI配置 --
+# 严格模式下提示符占位文本
+promptPlaceholder: "[Start a new chat]"
+openai:
+  # 向API发送随机用户ID
+  randomizeUserId: false
+  # 图像描述系统提示（非内联模式使用）
+  captionSystemPrompt: ""
+# -- DEEPL翻译配置 --
+deepl:
+  # 正式度选项：default/more/less/prefer_more/prefer_less
+  formality: default
+# -- MISTRAL API配置 --
+mistral:
+  # 在提示中预填充最后助手消息（注意回显问题）
+  enablePrefix: false
+# -- OLLAMA API配置 --
+ollama:
+  # 模型内存驻留时间：-1=永久, 0=立即卸载, N=保留N秒
+  keepAlive: -1
+  # 批处理大小：-1=默认, N=指定值（需为2的幂）
+  batchSize: -1
+# -- ANTHROPIC CLAUDE配置 --
+claude:
+  # 启用系统提示缓存（需静态提示）
+  enableSystemPromptCache: false
+  # 启用历史消息深度缓存（谨慎使用）
+  cachingAtDepth: -1
+  # 使用1小时TTL替代5分钟（影响成本）
+  extendedTTL: false
+# -- GOOGLE GEMINI配置 --
+gemini:
+  # API版本（v1beta或v1alpha）
+  apiVersion: 'v1beta'
+# -- 服务器插件配置 --
+enableServerPlugins: false
+# 启动时自动更新服务器插件
+enableServerPluginsAutoUpdate: true
