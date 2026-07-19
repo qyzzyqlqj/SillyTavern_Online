@@ -34,11 +34,15 @@ if [ ! -d "$DATA_DIR/.git" ]; then
     rm -rf /tmp/profile_backup
 
 
-
+	git lfs install
+	
     git clone \
-    https://${BACKUP_TOKEN}@github.com/qyzzyqlqj/sillytavern_profiles.git \
-    /tmp/profile_backup
+	https://${BACKUP_TOKEN}@github.com/qyzzyqlqj/sillytavern_profiles.git \
+	/tmp/profile_backup
 
+	cd /tmp/profile_backup
+
+	git lfs pull
 
 
     echo "清理默认数据目录"
