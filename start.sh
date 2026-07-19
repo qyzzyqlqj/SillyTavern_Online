@@ -102,7 +102,7 @@ envsubst < /app/config.yaml > /app/SillyTavern/config.yaml
 
 
 
-echo "=== 安装30分钟自动备份 ==="
+echo "=== 安装5分钟自动备份 ==="
 
 
 
@@ -116,7 +116,7 @@ crontab -l 2>/dev/null | grep -v "/app/backup.sh" > /tmp/crontab.tmp || true
 
 
 
-echo "*/30 * * * * BACKUP_TOKEN=$BACKUP_TOKEN /app/backup.sh >> /tmp/backup.log 2>&1" \
+echo "*/5 * * * * BACKUP_TOKEN=$BACKUP_TOKEN /app/backup.sh >> /tmp/backup.log 2>&1" \
 >> /tmp/crontab.tmp
 
 
