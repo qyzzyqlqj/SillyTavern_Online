@@ -30,8 +30,8 @@ browserLaunch:
   port: -1
   # 自动模式避免使用localhost
   avoidLocalhost: false
-# 服务器端口
-port: 7860
+# 服务器端口（由环境变量 PORT 控制，默认 7860，由 start.sh 注入）
+port: ${PORT}
 # -- SSL选项 --
 ssl:
   enabled: false

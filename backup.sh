@@ -3,7 +3,10 @@
 set -e
 
 # ============================================================
-# SillyTavern 自动备份
+# SillyTavern 自动备份（可泛化版本）
+#
+# 由 cron 每 5 分钟（或 BACKUP_SCHEDULE 指定频率）调用。
+# 所有可定制项均通过运行时环境变量控制。
 #
 # 实际运行中的第三方插件：
 # /app/SillyTavern/public/scripts/extensions/third-party
@@ -11,22 +14,50 @@ set -e
 # Git 仓库中的备份：
 # /app/SillyTavern/data/extensions/third-party
 #
-# GitHub：
-# qyzzyqlqj/sillytavern_profiles
+# GitHub 备份仓库等通过环境变量配置（见下方）
 # ============================================================
 
-
-# ============================================================
-# 配置
-# ============================================================
-
+# ---------- 路径（固定安装布局） ----------
 DATA_DIR="/app/SillyTavern/data"
 
 # SillyTavern 实际运行的第三方插件目录
 EXTENSIONS_DIR="/app/SillyTavern/public/scripts/extensions/third-party"
 
-# GitHub 备份仓库
-REPO_URL="https://${BACKUP_TOKEN}@github.com/qyzzyqlqj/sillytavern_profiles.git"
+# ============================================================
+# 环境变量配置
+# ============================================================
+
+# 必需：
+#   BACKUP_REPO_URL  备份仓库，如 github.com/用户名/仓库名.git
+#                    （可带 https:// 前缀，Token 会自动注入）
+#   BACKUP_TOKEN     GitHub Personal Access Token（需 repo 写权限）
+#
+# 可选（默认值）：
+#   BACKUP_BRANCH    备份分支名                (main)
+#   GIT_USER_NAME    git 提交用户名            (SillyTavern Backup)
+#   GIT_USER_EMAIL   git 提交邮箱              (backup@sillytavern.local)
+
+BACKUP_BRANCH="${BACKUP_BRANCH:-main}"
+GIT_USER_NAME="${GIT_USER_NAME:-SillyTavern Backup}"
+GIT_USER_EMAIL="${GIT_USER_EMAIL:-backup@sillytavern.local}"
+
+# 构建带 Token 的仓库 URL（与 start.sh 保持一致）
+build_repo_url() {
+    local repo="$1"
+    local token="$2"
+
+    repo="${repo#https://}"
+    repo="${repo#http://}"
+
+    if [[ -z "$token" ]]; then
+        echo "https://${repo}"
+    elif [[ "$repo" == *"@"* ]]; then
+        # URL 已包含凭据（如 user:token@host/...），直接使用
+        echo "https://${repo}"
+    else
+        echo "https://${token}@${repo}"
+    fi
+}
 
 
 # ============================================================
@@ -39,6 +70,7 @@ echo "=== SillyTavern 自动备份 ==="
 echo "========================================"
 
 echo "开始时间：$(date '+%Y-%m-%d %H:%M:%S')"
+echo "备份分支：$BACKUP_BRANCH"
 
 
 # ============================================================
@@ -58,6 +90,18 @@ if [ -z "$BACKUP_TOKEN" ]; then
     exit 1
 
 fi
+
+
+if [ -z "$BACKUP_REPO_URL" ]; then
+
+    echo "[ERROR] BACKUP_REPO_URL 未设置"
+
+    exit 1
+
+fi
+
+
+REPO_URL="$(build_repo_url "$BACKUP_REPO_URL" "$BACKUP_TOKEN")"
 
 
 if [ ! -d "$DATA_DIR" ]; then
@@ -108,9 +152,9 @@ pwd
 # Git 用户信息
 # ============================================================
 
-git config user.name "SillyTavern Backup"
+git config user.name "$GIT_USER_NAME"
 
-git config user.email "backup@sillytavern.local"
+git config user.email "$GIT_USER_EMAIL"
 
 
 # ============================================================
@@ -666,7 +710,7 @@ echo "=== Git Push ==="
 echo "========================================"
 
 
-git push origin main
+git push origin "$BACKUP_BRANCH"
 
 
 # ============================================================
