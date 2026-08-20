@@ -3,7 +3,7 @@
 set -e
 
 # ============================================================
-# 基础配置
+# 配置
 # ============================================================
 
 DATA_DIR="/app/SillyTavern/data"
@@ -23,72 +23,78 @@ echo "开始时间：$(date '+%Y-%m-%d %H:%M:%S')"
 
 
 # ============================================================
-# 检查环境
+# 环境检查
 # ============================================================
 
 if [ -z "$BACKUP_TOKEN" ]; then
-
     echo "[ERROR] BACKUP_TOKEN 未设置"
-
     exit 1
-
 fi
-
 
 if [ ! -d "$DATA_DIR" ]; then
-
     echo "[ERROR] Data目录不存在：$DATA_DIR"
-
     exit 1
-
 fi
 
-
 if [ ! -d "$DATA_DIR/.git" ]; then
-
     echo "[ERROR] Data目录不是Git仓库：$DATA_DIR"
-
     exit 1
-
 fi
 
 
 # ============================================================
 # 进入 Git 工作目录
-#
-# 注意：
-# 从这里开始直到 git push 完成，
-# 不要离开 DATA_DIR。
 # ============================================================
 
 cd "$DATA_DIR"
-
 
 echo ""
 echo "========================================"
 echo "=== Git环境 ==="
 echo "========================================"
 
-echo "当前Git工作目录：$(pwd)"
-
-echo "Git状态："
-
-git status --short
-
-
-# ============================================================
-# 配置 Git
-# ============================================================
+echo "当前工作目录：$(pwd)"
 
 git config user.name "HF-SillyTavern"
-
 git config user.email "backup@hf.space"
+
+git remote set-url origin "$REPO_URL"
+
+
+# ============================================================
+# 检查 .gitignore
+# ============================================================
+
+echo ""
+echo "========================================"
+echo "=== 检查 .gitignore ==="
+echo "========================================"
+
+if [ -f "$DATA_DIR/.gitignore" ]; then
+
+    echo "--- data/.gitignore ---"
+
+    cat "$DATA_DIR/.gitignore"
+
+else
+
+    echo "[INFO] data目录没有 .gitignore"
+
+fi
 
 
 echo ""
-echo "=== 配置Git远程仓库 ==="
+echo "--- Git是否忽略 extensions/ ---"
 
-git remote set-url origin "$REPO_URL"
+if git check-ignore -v "extensions/third-party" 2>/dev/null; then
+
+    echo "[WARN] extensions/third-party 被 .gitignore 忽略"
+
+else
+
+    echo "[OK] extensions/third-party 未被 .gitignore 忽略"
+
+fi
 
 
 # ============================================================
@@ -101,13 +107,6 @@ echo "=== 准备第三方插件备份 ==="
 echo "========================================"
 
 
-# 清理临时插件备份目录
-#
-# 注意：
-# 不要 cd 到这个目录。
-# 当前工作目录始终保持在 $DATA_DIR。
-#
-
 rm -rf "$BACKUP_EXTENSIONS_DIR"
 
 mkdir -p "$BACKUP_EXTENSIONS_DIR/third-party"
@@ -116,19 +115,16 @@ mkdir -p "$BACKUP_EXTENSIONS_DIR/third-party"
 if [ ! -d "$EXTENSIONS_DIR" ]; then
 
     echo "[WARN] 第三方插件目录不存在："
-
     echo "$EXTENSIONS_DIR"
 
 else
 
     echo "[OK] 找到第三方插件目录："
-
     echo "$EXTENSIONS_DIR"
 
 
     echo ""
-    echo "--- 当前插件目录 ---"
-
+    echo "--- 当前插件 ---"
 
     find "$EXTENSIONS_DIR" \
         -mindepth 1 \
@@ -139,33 +135,33 @@ else
 
 
     echo ""
-    echo "=== 复制插件到临时备份目录 ==="
+    echo "--- 当前插件文件数量 ---"
+
+    SOURCE_FILE_COUNT=$(
+        find "$EXTENSIONS_DIR" \
+            -type f \
+            2>/dev/null \
+            | wc -l
+    )
+
+    echo "$SOURCE_FILE_COUNT"
 
 
-    cp -rf \
+    echo ""
+    echo "=== 复制插件 ==="
+
+
+    cp -a \
         "$EXTENSIONS_DIR/." \
         "$BACKUP_EXTENSIONS_DIR/third-party/"
 
 
     # ========================================================
-    # 删除插件自身的 Git 信息
-    #
-    # 某些第三方插件本身就是 Git 仓库。
-    #
-    # 如果不删除：
-    #
-    # third-party/
-    # └── plugin/
-    #     └── .git/
-    #
-    # 外层 data Git 仓库不会正常记录插件内部文件。
-    #
-    # 这里只删除临时备份副本中的 .git，
-    # 不会影响正在运行的插件。
+    # 删除插件自身的 Git 仓库
     # ========================================================
 
     echo ""
-    echo "=== 清理插件内部Git仓库 ==="
+    echo "=== 清理插件内部 Git 信息 ==="
 
 
     find "$BACKUP_EXTENSIONS_DIR/third-party" \
@@ -185,12 +181,44 @@ else
         || true
 
 
-    echo "[OK] 插件内部Git信息清理完成"
+    echo "[OK] 插件内部 Git 信息清理完成"
+
+
+    # ========================================================
+    # 检查复制结果
+    # ========================================================
+
+    echo ""
+    echo "========================================"
+    echo "=== 检查插件复制结果 ==="
+    echo "========================================"
+
+
+    BACKUP_FILE_COUNT=$(
+        find "$BACKUP_EXTENSIONS_DIR/third-party" \
+            -type f \
+            2>/dev/null \
+            | wc -l
+    )
+
+
+    echo "源插件文件数量：$SOURCE_FILE_COUNT"
+
+    echo "备份副本文件数量：$BACKUP_FILE_COUNT"
+
+
+    if [ "$SOURCE_FILE_COUNT" -gt 0 ] && [ "$BACKUP_FILE_COUNT" -eq 0 ]; then
+
+        echo ""
+        echo "[ERROR] 插件复制失败！"
+
+        exit 1
+
+    fi
 
 
     echo ""
-    echo "--- 临时插件备份目录 ---"
-
+    echo "--- 备份副本中的插件 ---"
 
     find "$BACKUP_EXTENSIONS_DIR/third-party" \
         -mindepth 1 \
@@ -199,11 +227,21 @@ else
         -print \
         || true
 
+
+    echo ""
+    echo "--- 备份副本中的文件（最多50个） ---"
+
+    find "$BACKUP_EXTENSIONS_DIR/third-party" \
+        -type f \
+        -print \
+        | head -50 \
+        || true
+
 fi
 
 
 # ============================================================
-# 更新 data 中的插件备份
+# 更新 data/extensions
 # ============================================================
 
 echo ""
@@ -212,30 +250,19 @@ echo "=== 更新Git仓库中的插件备份 ==="
 echo "========================================"
 
 
-# 删除旧的插件备份副本
-#
-# 注意：
-# 这里只删除：
-#
-# /app/SillyTavern/data/extensions
-#
-# 不会删除真正运行中的插件。
-#
-
 rm -rf "$DATA_DIR/extensions"
+
+mkdir -p "$DATA_DIR/extensions"
 
 
 if [ -d "$BACKUP_EXTENSIONS_DIR/third-party" ]; then
 
-    mkdir -p "$DATA_DIR/extensions"
-
-
-    cp -rf \
+    cp -a \
         "$BACKUP_EXTENSIONS_DIR/third-party" \
         "$DATA_DIR/extensions/"
 
 
-    echo "[OK] 新插件备份已复制到："
+    echo "[OK] 插件备份已复制到："
 
     echo "$DATA_DIR/extensions/third-party"
 
@@ -247,41 +274,36 @@ fi
 
 
 # ============================================================
-# 清理临时备份
-#
-# 注意：
-# 这里绝对不能使用：
-#
-# cd /
-#
-# 因为后面还需要继续执行 Git 操作。
-#
-# 当前工作目录必须保持：
-#
-# /app/SillyTavern/data
+# 清理临时目录
 # ============================================================
-
-echo ""
-echo "=== 清理临时备份目录 ==="
 
 rm -rf "$BACKUP_EXTENSIONS_DIR"
 
 
 # ============================================================
-# 检查插件备份结果
+# 检查最终备份目录
 # ============================================================
 
 echo ""
 echo "========================================"
-echo "=== 检查插件备份结果 ==="
+echo "=== 最终插件目录检查 ==="
 echo "========================================"
 
 
 if [ -d "$DATA_DIR/extensions/third-party" ]; then
 
+    FINAL_FILE_COUNT=$(
+        find "$DATA_DIR/extensions/third-party" \
+            -type f \
+            2>/dev/null \
+            | wc -l
+    )
+
+    echo "最终插件文件数量：$FINAL_FILE_COUNT"
+
+
     echo ""
     echo "--- 插件目录 ---"
-
 
     find "$DATA_DIR/extensions/third-party" \
         -mindepth 1 \
@@ -294,73 +316,129 @@ if [ -d "$DATA_DIR/extensions/third-party" ]; then
     echo ""
     echo "--- 插件文件（最多50个） ---"
 
-
     find "$DATA_DIR/extensions/third-party" \
         -type f \
         -print \
         | head -50 \
         || true
 
-
-    echo ""
-    echo "--- 插件备份大小 ---"
-
-
-    du -sh "$DATA_DIR/extensions/third-party" \
-        2>/dev/null \
-        || true
-
 else
 
-    echo "[WARN] 插件备份目录不存在"
+    echo "[WARN] extensions/third-party 不存在"
 
 fi
 
 
 # ============================================================
-# 再次确认 Git 工作目录
+# Git 状态
 # ============================================================
 
 echo ""
 echo "========================================"
-echo "=== Git提交前检查 ==="
+echo "=== Git状态 ==="
 echo "========================================"
-
 
 echo "当前工作目录：$(pwd)"
 
+git status --short
 
-if [ "$(pwd)" != "$DATA_DIR" ]; then
 
-    echo "[ERROR] Git工作目录错误！"
+# ============================================================
+# 强制添加插件
+#
+# 这里使用 git add -f。
+#
+# 即使 SillyTavern 的 .gitignore 写了：
+#
+# extensions/
+#
+# 插件也会被强制加入。
+# ============================================================
 
-    echo "当前：$(pwd)"
+echo ""
+echo "========================================"
+echo "=== 强制加入第三方插件 ==="
+echo "========================================"
 
-    echo "应该：$DATA_DIR"
+
+if [ -d "$DATA_DIR/extensions" ]; then
+
+    git add -f extensions/
+
+    echo "[OK] extensions/ 已强制加入 Git"
+
+else
+
+    echo "[WARN] extensions/ 不存在"
+
+fi
+
+
+# ============================================================
+# 添加其它 Data 修改
+# ============================================================
+
+echo ""
+echo "=== 添加其它Data修改 ==="
+
+git add -A
+
+
+# ============================================================
+# 检查 Staged 文件
+# ============================================================
+
+echo ""
+echo "========================================"
+echo "=== Git Staged 文件检查 ==="
+echo "========================================"
+
+
+echo "--- 所有即将提交的文件 ---"
+
+git diff --cached --name-status
+
+
+echo ""
+echo "--- 插件 Staged 文件数量 ---"
+
+
+STAGED_EXTENSION_COUNT=$(
+    git diff --cached --name-only \
+        -- extensions/third-party \
+        | wc -l
+)
+
+
+echo "$STAGED_EXTENSION_COUNT"
+
+
+if [ "$FINAL_FILE_COUNT" -gt 0 ] && [ "$STAGED_EXTENSION_COUNT" -eq 0 ]; then
+
+    echo ""
+    echo "[ERROR] 插件存在，但没有进入 Git Staged 区！"
+
+    echo ""
+    echo "检查 Git 是否认为插件被忽略："
+
+    git check-ignore -v \
+        extensions/third-party/* \
+        2>/dev/null \
+        || true
 
     exit 1
 
 fi
 
 
-echo ""
-echo "--- Git状态 ---"
-
-
-git status --short
-
-
 # ============================================================
 # 判断是否有修改
 # ============================================================
 
-if [ -z "$(git status --porcelain)" ]; then
+if [ -z "$(git diff --cached --name-only)" ]; then
 
     echo ""
-    echo "[OK] 没有检测到新的修改"
-
-    echo ""
-    echo "=== 本次无需提交 ==="
+    echo "[OK] 没有需要提交的修改"
 
     exit 0
 
@@ -368,20 +446,7 @@ fi
 
 
 # ============================================================
-# Git Add
-# ============================================================
-
-echo ""
-echo "========================================"
-echo "=== Git Add ==="
-echo "========================================"
-
-
-git add .
-
-
-# ============================================================
-# Git Commit
+# Commit
 # ============================================================
 
 echo ""
@@ -395,7 +460,7 @@ git commit \
 
 
 # ============================================================
-# Git Push
+# Push
 # ============================================================
 
 echo ""
@@ -419,13 +484,9 @@ echo "========================================"
 echo "完成时间：$(date '+%Y-%m-%d %H:%M:%S')"
 
 echo ""
-echo "Git最新Commit："
+echo "最新 Commit："
 
 git log -1 --oneline
-
-
-echo ""
-echo "当前工作目录：$(pwd)"
 
 echo ""
 echo "========================================"
